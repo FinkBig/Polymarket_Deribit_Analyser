@@ -2,6 +2,12 @@
 
 This project analyzes and compares implied probability distributions derived from Deribit Bitcoin options (using Risk-Neutral Density - RND) with probabilities from Polymarket prediction markets for corresponding price ranges. The goal is to understand how expectations reflected in these two distinct market types align or differ.
 
+![image](https://github.com/user-attachments/assets/c24c0df9-341d-4ac8-ae34-81000f2f717a)
+
+![image](https://github.com/user-attachments/assets/8eb9f6d6-8759-4bcf-aed0-33d3cb91fc63)
+
+* Results can be found in the report folder * 
+
 ## Project Structure
 ```
 polymarket_deribit_analyser/
