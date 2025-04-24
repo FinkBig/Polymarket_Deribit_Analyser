@@ -6,7 +6,7 @@ This project analyzes and compares implied probability distributions derived fro
 
 ![image](https://github.com/user-attachments/assets/8eb9f6d6-8759-4bcf-aed0-33d3cb91fc63)
 
-**Results can be found in the report folder**
+**Results can be found in data/reports**
 
 ## Project Structure
 ```
