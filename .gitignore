@@ -1,7 +1,7 @@
-# Python virtual environment
+# Python virtual environment (if applicable)
 .venv/
 venv/
-env/
+ENV/
 
 # Python cache files
 __pycache__/
@@ -9,15 +9,29 @@ __pycache__/
 *.pyo
 *.pyd
 
-# OS-specific files
+# IDE / Editor specific files
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS specific files
 .DS_Store
 Thumbs.db
 
-# IDE/Editor specific files (optional examples)
-.idea/
-.vscode/
+# --- Data Files ---
+# Ignore specific raw/intermediate data directories
+data/binance_data/
+data/combined/
+data/deribit_data/
+data/polymarket_data/ # Assuming you don't need the input CSVs in the repo
+data/rnd_data/
 
-# Large data files (Optional - uncomment and adjust if needed)
-# data/intermediate/*.csv
-# data/final/*.csv
-# data/raw/*.csv
+# DO NOT ignore data/reports/ (it will be included by default now)
+
+# Log files (if any created)
+*.log
+
+# Secrets / Config (if you add any sensitive files later)
+# config.ini
+# .env

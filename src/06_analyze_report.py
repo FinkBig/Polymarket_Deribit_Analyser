@@ -277,8 +277,8 @@ def calculate_summary_stats(df):
                 stats.append(f"  {range_str}: Insufficient data for DTW calculation (n={len(group)}).")
                 continue
 
-            poly_values = group['polymarket_prob_pct'].values
-            deribit_values = group['deribit_rnd_prob_pct'].values
+            poly_values = group['polymarket_prob_pct'].values.ravel()
+            deribit_values = group['deribit_rnd_prob_pct'].values.ravel()
 
             # Ensure arrays are 1-D and numeric
             if not isinstance(poly_values, np.ndarray) or poly_values.ndim != 1:
@@ -332,9 +332,9 @@ def calculate_summary_stats(df):
     for range_str, group in df.groupby('polymarket_strike_range'):
         group = group.sort_values('timestamp')
         # Calculate percentage changes
-        spot_changes = group['spot_price'].pct_change().dropna()
-        poly_changes = group['polymarket_prob_pct'].pct_change().dropna()
-        deribit_changes = group['deribit_rnd_prob_pct'].pct_change().dropna()
+        spot_changes = group['spot_price'].pct_change(fill_method=None).dropna()
+        poly_changes = group['polymarket_prob_pct'].pct_change(fill_method=None).dropna()
+        deribit_changes = group['deribit_rnd_prob_pct'].pct_change(fill_method=None).dropna()
 
         # Align indices for correlation calculation
         aligned_data = pd.DataFrame({

@@ -26,23 +26,23 @@ DTW Distances by Strike Range (Polymarket vs Deribit):
 
 Correlation with Spot Price Changes by Strike Range:
   78-80k:
-    Polymarket Probability Change: 0.0609
+    Polymarket Probability Change: 0.1669
     Deribit Probability Change: nan
   80-82k:
-    Polymarket Probability Change: 0.0103
+    Polymarket Probability Change: -0.0191
     Deribit Probability Change: nan
   82-84k:
-    Polymarket Probability Change: -0.0270
+    Polymarket Probability Change: -0.0269
     Deribit Probability Change: nan
   84-86k:
-    Polymarket Probability Change: -0.1094
+    Polymarket Probability Change: -0.0663
     Deribit Probability Change: nan
   86-88k:
-    Polymarket Probability Change: 0.1638
-    Deribit Probability Change: -0.1172
+    Polymarket Probability Change: -0.0420
+    Deribit Probability Change: -0.1110
   <78k:
-    Polymarket Probability Change: -0.0382
+    Polymarket Probability Change: 0.2161
     Deribit Probability Change: nan
   >88k:
-    Polymarket Probability Change: 0.0754
-    Deribit Probability Change: 0.3152
+    Polymarket Probability Change: 0.0342
+    Deribit Probability Change: 0.4043

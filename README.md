@@ -1,12 +1,10 @@
 # Polymarket vs Deribit RND Analysis (Thesis Project)
 
-RESULTS CAN BE FOUND IN DATA/REPORTS
-
 This project analyzes and compares implied probability distributions derived from Deribit Bitcoin options (using Risk-Neutral Density - RND) with probabilities from Polymarket prediction markets for corresponding price ranges. The goal is to understand how expectations reflected in these two distinct market types align or differ.
 
 ## Project Structure
-
-thesis2.0/
+```
+polymarket_deribit_analyser/
 ├── data/                     # Data files
 │   ├── binance_data/         # Raw Binance spot price data
 │   ├── combined/             # Combined comparison data (output of script 05)
@@ -28,7 +26,7 @@ thesis2.0/
 ├── requirements.txt          # Python package dependencies
 ├── README.md                 # This file
 └── .gitignore                # Git ignore configuration (recommended)
-
+```
 ## Pipeline Details
 
 ### Data Sources
@@ -101,7 +99,12 @@ The Risk-Neutral Density (RND) represents the probability distribution of the fu
 2.  **Python Environment:** It's recommended to use a virtual environment (e.g., `venv`). Requires Python 3.8+.
     ```bash
     python -m venv .venv
-    source .venv/bin/activate  # On Windows use `.venv\Scripts\activate`
+
+    # On Mac OS or Linux
+    source .venv/bin/activate  
+    
+    # On Windows
+    .venv\Scripts\activate
     ```
 3.  **Install Dependencies:**
     ```bash
@@ -116,10 +119,12 @@ The Risk-Neutral Density (RND) represents the probability distribution of the fu
 ## Running the Pipeline
 
 1.  **Activate Virtual Environment:**
+
     ```bash
     source .venv/bin/activate # Or equivalent
     ```
-2.  **Run the Main Script:** Execute `main.py` from the root `thesis2.0` (or your renamed folder) directory.
+2.  **Run the Main Script:** Execute `main.py` from project root.
+
     ```bash
     python main.py
     ```
