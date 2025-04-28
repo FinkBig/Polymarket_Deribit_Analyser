@@ -1,0 +1,216 @@
+# ==============================================================================
+# Panel Regression Analysis: Polymarket vs. Deribit Probability Discrepancy
+#
+# Author: Cornelius Fink
+# Date: 2025-04-28
+#
+# Description:
+# This script performs a fixed-effects panel regression to analyze the
+# Total Variation Distance (TVD) between Polymarket probabilities and
+# Deribit Risk-Neutral Densities (RND) for Bitcoin price prediction markets.
+# It uses hourly data for multiple weekly expiration contracts.
+#
+# Methodology based on the Master's Thesis:
+# "Prediction Markets vs. Options Markets: A Comparative Pricing Analysis
+#  of Crypto-Based Event Contracts" by Cornelius Fink.
+# ==============================================================================
+
+# --- 1. Import Libraries ---
+import pandas as pd
+import statsmodels.formula.api as smf
+import statsmodels.api as sm
+import numpy as np
+import os
+import io
+import warnings
+
+# Suppress specific warnings if desired (e.g., from statsmodels)
+warnings.filterwarnings('ignore', category=FutureWarning)
+warnings.filterwarnings('ignore', category=UserWarning)
+
+print("Libraries imported successfully.")
+
+# --- 2. Define File Paths and Parameters ---
+# Assumes CSV files are in the same directory as the script,
+# or provide the full path.
+DATA_DIR = "." # Use "." for current directory, or specify path e.g., "data/"
+file_names = [
+    "comparison_07MAR25.csv",
+    "comparison_14MAR25.csv",
+    "comparison_21MAR25.csv",
+    "comparison_28MAR25.csv"
+]
+
+# Map filenames to the market identifier used for fixed effects
+expiration_map = {
+    "comparison_07MAR25.csv": "07MAR25",
+    "comparison_14MAR25.csv": "14MAR25",
+    "comparison_21MAR25.csv": "21MAR25",
+    "comparison_28MAR25.csv": "28MAR25"
+}
+
+print(f"Looking for data files in: {os.path.abspath(DATA_DIR)}")
+print(f"Files to load: {file_names}")
+
+# --- 3. Load and Combine Data ---
+all_data = []
+loaded_files = []
+error_messages = []
+
+print("\nLoading data...")
+for fname in file_names:
+    fpath = os.path.join(DATA_DIR, fname)
+    try:
+        # Read the file content (adjust if running outside environment with direct access)
+        with open(fpath, 'r') as f:
+           file_content = f.read()
+        # Use io.StringIO to treat the string content as a file for pandas
+        df = pd.read_csv(io.StringIO(file_content))
+        
+        # Check if necessary columns exist
+        required_cols = ['timestamp', 'polymarket_prob_pct', 'deribit_rnd_prob_pct',
+                         'time_to_expiration_days', 'spot_price', 'deribit_volume_proxy']
+        if not all(col in df.columns for col in required_cols):
+             raise ValueError(f"Missing required columns in {fname}")
+             
+        df['expiration_date'] = expiration_map[fname] # Assign market identifier
+        all_data.append(df)
+        loaded_files.append(fname)
+        print(f"  Successfully loaded {fname} ({len(df)} rows)")
+    except FileNotFoundError:
+        error_messages.append(f"Error: File not found - {fpath}")
+    except ValueError as ve:
+         error_messages.append(f"Error: {ve}")
+    except Exception as e:
+        error_messages.append(f"Error loading file {fpath}: {e}")
+
+# Print errors if any
+if error_messages:
+    print("\n--- Loading Errors ---")
+    for msg in error_messages:
+        print(msg)
+    print("----------------------")
+
+# Proceed only if some data was loaded
+if not all_data:
+    print("\nError: No data files were loaded successfully. Regression cannot be performed.")
+    # Exit or handle error appropriately
+    exit()
+else:
+    print(f"\nSuccessfully loaded data from: {', '.join(loaded_files)}")
+    combined_df = pd.concat(all_data, ignore_index=True)
+    print(f"Total rows combined: {len(combined_df)}")
+
+    # --- 4. Data Preprocessing ---
+    print("\nStarting Data Preprocessing...")
+    
+    # Convert timestamp to datetime objects (make timezone-aware UTC)
+    try:
+        combined_df['timestamp'] = pd.to_datetime(combined_df['timestamp'], utc=True)
+        print("  Timestamp converted to datetime.")
+    except Exception as e:
+        print(f"Error converting timestamp: {e}. Exiting.")
+        exit()
+
+    # Drop rows with NaN probabilities required for TVD calculation
+    initial_rows_tvd = len(combined_df)
+    tvd_calc_df = combined_df.dropna(subset=['polymarket_prob_pct', 'deribit_rnd_prob_pct']).copy()
+    rows_after_tvd_na = len(tvd_calc_df)
+    print(f"  Rows for TVD calculation (after dropping NaNs in prob columns): {rows_after_tvd_na} (dropped {initial_rows_tvd - rows_after_tvd_na})")
+
+    if rows_after_tvd_na == 0:
+        print("Error: No valid rows remaining to calculate TVD. Check input data.")
+        exit()
+
+    # Calculate absolute difference for each row (strike range)
+    # Note: Probabilities are kept in percentage points scale based on thesis Table 6 results
+    tvd_calc_df['abs_diff'] = abs(tvd_calc_df['polymarket_prob_pct'] - tvd_calc_df['deribit_rnd_prob_pct'])
+    print("  Calculated absolute probability difference per row.")
+
+    # Group by timestamp and market to calculate TVD and aggregate other variables
+    print("  Aggregating data per timestamp and market...")
+    grouped = tvd_calc_df.groupby(['timestamp', 'expiration_date'])
+    
+    panel_data = grouped.agg(
+        # TVD = 0.5 * sum(|P_deribit - P_poly|) - Sum abs_diff per group and divide by 2
+        TVD=('abs_diff', lambda x: x.sum() / 2.0), 
+        # Take the first value for variables constant within each timestamp-group
+        Time_to_expiration=('time_to_expiration_days', 'first'), 
+        spot_price=('spot_price', 'first'), 
+        # Sum the volume proxy across all strike ranges for the timestamp
+        Volume_proxy=('deribit_volume_proxy', 'sum') 
+    ).reset_index() # Reset index to make timestamp and expiration_date columns
+    print(f"  Aggregation complete. Resulting shape: {panel_data.shape}")
+
+    # Ensure 'expiration_date' is treated as a categorical variable for fixed effects
+    panel_data['expiration_date'] = pd.Categorical(panel_data['expiration_date'])
+    
+    # Drop any remaining NaNs (e.g., if a whole timestamp group had NaN volume)
+    initial_rows_final = len(panel_data)
+    panel_data.dropna(subset=['TVD', 'Time_to_expiration', 'spot_price', 'Volume_proxy'], inplace=True)
+    rows_after_final_na = len(panel_data)
+    print(f"  Rows before final NA drop: {initial_rows_final}, Rows after: {rows_after_final_na} (dropped {initial_rows_final - rows_after_final_na})")
+
+
+    print(f"\nFinal Panel data shape ready for regression: {panel_data.shape}")
+    if panel_data.empty:
+         print("Error: Final panel data is empty after processing. Cannot run regression.")
+         exit()
+    else:
+        # print("\nFirst 5 rows of final panel data:") # Optional: uncomment to view data
+        # print(panel_data.head())
+        # print("\nData types of final panel data:") # Optional: uncomment for info
+        # print(panel_data.info())
+
+        # --- 5. Panel Regression ---
+        print("\nRunning Fixed Effects Panel Regression (OLS with Dummies)...")
+        
+        # Define the formula based on the thesis
+        formula = 'TVD ~ Time_to_expiration + spot_price + Volume_proxy + C(expiration_date)'
+        print(f"  Formula: {formula}")
+        
+        try:
+            # Estimate the model using OLS
+            model = smf.ols(formula, data=panel_data)
+
+            # Fit the model and specify HC1 robust standard errors
+            results = model.fit(cov_type='HC1')
+
+            # Print the regression summary
+            print("\n" + "="*80)
+            print("--- REGRESSION RESULTS (Statsmodels OLS with Fixed Effects Dummies) ---")
+            print("="*80)
+            print(results.summary())
+            print("="*80)
+
+            # --- 6. Multicollinearity Check ---
+            print("\n--- Multicollinearity Check ---")
+            
+            # Prepare design matrix X for diagnostics
+            X_vars = ['Time_to_expiration', 'spot_price', 'Volume_proxy']
+            X = panel_data[X_vars].copy()
+            # Add dummy variables manually, ensure dtype is float for calculation
+            X = pd.concat([X, pd.get_dummies(panel_data['expiration_date'], prefix='market', drop_first=True, dtype=float)], axis=1) 
+            X = sm.add_constant(X, has_constant='add') # Add constant term
+
+            # Ensure X is numeric and handle potential NaNs introduced (unlikely here)
+            X = X.astype(float).dropna()
+
+            if X.shape[0] == rows_after_final_na and X.shape[0] > 0: # Check row count consistency
+               # Calculate condition number
+               condition_number = np.linalg.cond(X.values) 
+               print(f"Condition Number of the design matrix: {condition_number:.2e}")
+               if condition_number > 30: # Common threshold, though context matters
+                   print("Warning: High condition number detected (> 30), potentially indicating multicollinearity.")
+               else:
+                   print("Condition number suggests multicollinearity is unlikely to be a major issue.")
+            elif X.shape[0] == 0:
+                 print("Could not calculate Condition Number: Design matrix is empty after processing.")
+            else:
+                 print(f"Could not calculate Condition Number: Row count mismatch after preparing design matrix (Expected {rows_after_final_na}, Got {X.shape[0]}).")
+            print("-----------------------------")
+
+        except Exception as e:
+            print(f"\nAn error occurred during regression analysis: {e}")
+
+print("\nScript finished.")
